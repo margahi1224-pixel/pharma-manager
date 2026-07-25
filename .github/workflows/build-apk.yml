@@ -30,18 +30,24 @@ jobs:
       - name: Ensure platform folders exist
         run: flutter create --platforms=android --project-name pharma_manager .
 
-      # isar_flutter_libs ships a Kotlin stdlib newer than the default
-      # Kotlin Gradle plugin version flutter create ships with, causing
-      # "compiled with incompatible version of Kotlin" errors. Bump it
-      # regardless of which gradle file format this Flutter version used.
+      # isar_flutter_libs ships Kotlin stdlib metadata newer than the
+      # default Kotlin Gradle plugin version flutter create ships with.
+      # This matches Groovy (id "..." version "...", ext.kotlin_version)
+      # and Kotlin-DSL (id("...") version "...") formats, single or
+      # double quotes, in whichever gradle file flutter generated.
       - name: Bump Kotlin version
         run: |
-          if [ -f android/build.gradle ] && grep -q "kotlin_version" android/build.gradle; then
-            sed -i "s/ext.kotlin_version = '.*'/ext.kotlin_version = '1.9.24'/" android/build.gradle
-          fi
-          if [ -f android/settings.gradle ] && grep -q "org.jetbrains.kotlin.android" android/settings.gradle; then
-            sed -i "s/id \"org.jetbrains.kotlin.android\" version \".*\"/id \"org.jetbrains.kotlin.android\" version \"1.9.24\"/" android/settings.gradle
-          fi
+          NEW_KOTLIN=2.1.0
+          for f in android/settings.gradle android/settings.gradle.kts android/build.gradle android/build.gradle.kts; do
+            if [ -f "$f" ]; then
+              echo "--- Before: $f ---"
+              grep -n -i "kotlin" "$f" || true
+              sed -i -E "s/(id[[:space:]]*\(?[\"']org\.jetbrains\.kotlin\.android[\"']\)?[[:space:]]*version[[:space:]]*[\"'])[^\"']*([\"'])/\1${NEW_KOTLIN}\2/" "$f"
+              sed -i -E "s/(ext\.kotlin_version[[:space:]]*=[[:space:]]*[\"'])[^\"']*([\"'])/\1${NEW_KOTLIN}\2/" "$f"
+              echo "--- After: $f ---"
+              grep -n -i "kotlin" "$f" || true
+            fi
+          done
 
       - name: Install dependencies
         run: flutter pub get
