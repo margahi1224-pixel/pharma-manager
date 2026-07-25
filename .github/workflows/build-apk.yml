@@ -24,8 +24,11 @@ jobs:
       # Generates android/, ios/, etc. platform folders if this is the
       # first run and they aren't committed to the repo yet. Safe to
       # re-run — it won't overwrite an existing platform folder.
+      # --project-name is forced to pharma_manager because the repo
+      # folder name (pharma-manager, with a hyphen) is not a valid
+      # Dart package name.
       - name: Ensure platform folders exist
-        run: flutter create --platforms=android .
+        run: flutter create --platforms=android --project-name pharma_manager .
 
       - name: Install dependencies
         run: flutter pub get
