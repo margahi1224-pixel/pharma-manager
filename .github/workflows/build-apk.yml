@@ -30,24 +30,34 @@ jobs:
       - name: Ensure platform folders exist
         run: flutter create --platforms=android --project-name pharma_manager .
 
-      # isar_flutter_libs ships Kotlin stdlib metadata newer than the
-      # default Kotlin Gradle plugin version flutter create ships with.
-      # This matches Groovy (id "..." version "...", ext.kotlin_version)
-      # and Kotlin-DSL (id("...") version "...") formats, single or
-      # double quotes, in whichever gradle file flutter generated.
-      - name: Bump Kotlin version
+      # isar_flutter_libs needs a newer Kotlin than the default template.
+      # Bumping Kotlin alone breaks AGP compatibility, so AGP and the
+      # Gradle wrapper are bumped together to a known-good combo:
+      # AGP 8.1.4 + Kotlin 1.9.24 + Gradle 8.4.
+      - name: Bump AGP / Kotlin / Gradle versions
         run: |
-          NEW_KOTLIN=2.1.0
+          NEW_KOTLIN=1.9.24
+          NEW_AGP=8.1.4
+
           for f in android/settings.gradle android/settings.gradle.kts android/build.gradle android/build.gradle.kts; do
             if [ -f "$f" ]; then
               echo "--- Before: $f ---"
-              grep -n -i "kotlin" "$f" || true
+              grep -n -iE "kotlin|com\.android\.application" "$f" || true
               sed -i -E "s/(id[[:space:]]*\(?[\"']org\.jetbrains\.kotlin\.android[\"']\)?[[:space:]]*version[[:space:]]*[\"'])[^\"']*([\"'])/\1${NEW_KOTLIN}\2/" "$f"
               sed -i -E "s/(ext\.kotlin_version[[:space:]]*=[[:space:]]*[\"'])[^\"']*([\"'])/\1${NEW_KOTLIN}\2/" "$f"
+              sed -i -E "s/(id[[:space:]]*\(?[\"']com\.android\.application[\"']\)?[[:space:]]*version[[:space:]]*[\"'])[^\"']*([\"'])/\1${NEW_AGP}\3/" "$f"
+              sed -i -E "s/(classpath[[:space:]]*[\"']com\.android\.tools\.build:gradle:)[^\"']*([\"'])/\1${NEW_AGP}\2/" "$f"
               echo "--- After: $f ---"
-              grep -n -i "kotlin" "$f" || true
+              grep -n -iE "kotlin|com\.android\.application|com\.android\.tools\.build" "$f" || true
             fi
           done
+
+          if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            sed -i -E "s#distributionUrl=.*#distributionUrl=https\\\\://services.gradle.org/distributions/gradle-8.4-all.zip#" \
+              android/gradle/wrapper/gradle-wrapper.properties
+            echo "--- gradle-wrapper.properties ---"
+            cat android/gradle/wrapper/gradle-wrapper.properties
+          fi
 
       - name: Install dependencies
         run: flutter pub get
